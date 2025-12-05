@@ -21,7 +21,7 @@ function App() {
 
     try {
       // Call the backend API
-      const response = await axios.get(`http://localhost:3000/vessel-position?name=${encodeURIComponent(query)}`, {
+      const response = await axios.get(`/api/vessel-position?name=${encodeURIComponent(query)}`, {
         headers: {
           'Accept': 'application/json' // Request JSON if backend supports it
         }

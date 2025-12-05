@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
@@ -9,8 +10,8 @@ app.use(cors()); // Enable CORS for all routes
 const PORT = process.env.PORT || 3000;
 
 // API Keys
-const WEATHER_API_KEY = '96a3c7d990e1c786b51431146e55fbdd';
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZ2FuZXNoYXJpaGFudGgiLCJhIjoiY20wNHpmMTdrMGZhbTJxcXhpNzN2a2IyeCJ9.eu-3yEvHysXt5wvuwTmcaw';
+const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
+const MAPBOX_ACCESS_TOKEN = process.env.MAPBOX_ACCESS_TOKEN;
 
 // Helper function to fetch weather
 async function fetchWeather(lat, lon) {
@@ -54,7 +55,7 @@ async function fetchSatelliteImage(lat, lon) {
 }
 
 // RapidAPI Configuration
-const RAPIDAPI_KEY = 'b3f908e177mshc6e18f1ad07cbb6p183bdbjsne93bc24941dc';
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 const RAPIDAPI_HOST = 'vessels1.p.rapidapi.com';
 
 // Helper: Map Name to MMSI (Mock Search)
@@ -348,6 +349,10 @@ app.get('/vessel-position', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server is running on http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;
