@@ -1,13 +1,24 @@
 {
     "version": 2,
-    "rewrites": [
+    "routes": [
         {
-            "source": "/api/(.*)",
-            "destination": "/final-version/server.js"
+            "src": "/api/(.*)",
+            "dest": "/final-version/server.js"
         },
         {
-            "source": "/(.*)",
-            "destination": "/frontend/dist/index.html"
+            "src": "/assets/(.*)",
+            "dest": "/frontend/dist/assets/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/frontend/dist/$1"
+        },
+        {
+            "handle": "filesystem"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/frontend/dist/index.html"
         }
     ],
     "builds": [
