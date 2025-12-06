@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { Vessel } = require('./db');
+const { VesselCache, VesselHistory } = require('./db');
 
 const app = express();
 app.use(cors()); // Enable CORS for all routes
@@ -94,11 +94,11 @@ const handleVesselPosition = async (req, res) => {
 
     // Check Database for recent data (Caching)
     try {
-        // Check for data cached within the last 60 minutes
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-        const cachedVessel = await Vessel.findOne({
+        // Check for data cached within the last 24 hours (86400 seconds)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const cachedVessel = await VesselCache.findOne({
             mmsi: mmsi,
-            cachedAt: { $gte: oneHourAgo }
+            cachedAt: { $gte: oneDayAgo }
         }).sort({ cachedAt: -1 });
 
         if (cachedVessel) {
@@ -185,17 +185,19 @@ const handleVesselPosition = async (req, res) => {
         const weatherData = await fetchWeather(latitude, longitude);
 
         // 4. Save to Database (Optional: Update schema if needed, keeping simple for now)
+        // 4. Save to Database
         try {
-            await Vessel.create({
+            // Save to Cache (Overwrite or new entry, handled by separate collection with TTL)
+            await VesselCache.create({
                 mmsi: vesselData.mmsi,
                 imo: vesselData.imo || 0,
                 name: vesselData.vesselName,
                 timestamp: new Date(vesselData.updatedAt),
-                length: 0, // Not provided
-                width: 0, // Not provided
+                length: 0,
+                width: 0,
                 draft: vesselData.draught,
                 cog: course,
-                heading: 0, // Not provided
+                heading: 0,
                 latitude: latitude,
                 longitude: longitude,
                 weather: weatherData.weather[0].main,
@@ -207,6 +209,32 @@ const handleVesselPosition = async (req, res) => {
                 rain: weatherData.rain ? weatherData.rain['1h'] : 'No rain data',
                 clouds: weatherData.clouds.all
             });
+
+            // Save to History (Permanent record)
+            await VesselHistory.create({
+                mmsi: vesselData.mmsi,
+                imo: vesselData.imo || 0,
+                name: vesselData.vesselName,
+                timestamp: new Date(vesselData.updatedAt),
+                message: 'Live API Fetch',
+                length: 0,
+                width: 0,
+                draft: vesselData.draught,
+                cog: course,
+                heading: 0,
+                latitude: latitude,
+                longitude: longitude,
+                weather: weatherData.weather[0].main,
+                weatherdescription: weatherData.weather[0].description,
+                temperature: weatherData.main.temp,
+                pressure: weatherData.main.pressure,
+                humidity: weatherData.main.humidity,
+                windspeed: weatherData.wind.speed,
+                rain: weatherData.rain ? weatherData.rain['1h'] : 'No rain data',
+                clouds: weatherData.clouds.all
+            });
+            console.log(`Saved data for ${vesselData.vesselName} to Cache and History.`);
+
         } catch (dbError) {
             console.error("Database save failed:", dbError.message);
             // Continue without failing the request
@@ -315,8 +343,9 @@ const handleVesselPosition = async (req, res) => {
                 }
 
                 // SAVE MOCK DATA TO DB (for caching verification)
+                // SAVE MOCK DATA TO DB
                 try {
-                    await Vessel.create({
+                    await VesselCache.create({
                         mmsi: mockData.mmsi,
                         imo: mockData.imo,
                         name: mockData.name,
@@ -337,14 +366,37 @@ const handleVesselPosition = async (req, res) => {
                         rain: mockData.rain,
                         clouds: mockData.clouds
                     });
-                    console.log('Mock data saved to database for caching');
+
+                    await VesselHistory.create({
+                        mmsi: mockData.mmsi,
+                        imo: mockData.imo,
+                        name: mockData.name,
+                        timestamp: mockData.timestamp,
+                        message: 'Mock Data Entry',
+                        length: 100,
+                        width: 20,
+                        draft: 5,
+                        cog: mockData.course,
+                        heading: 0,
+                        latitude: mockData.latitude,
+                        longitude: mockData.longitude,
+                        weather: mockData.weather,
+                        weatherdescription: mockData.weatherDescription,
+                        temperature: mockData.temperature,
+                        pressure: mockData.pressure,
+                        humidity: mockData.humidity,
+                        windspeed: mockData.windspeed,
+                        rain: mockData.rain,
+                        clouds: mockData.clouds
+                    });
+                    console.log('Mock data saved to Cache and History');
                 } catch (dbErr) {
                     console.error('Failed to save mock data:', dbErr.message);
                 }
 
                 return res.json(mockData);
             }
-        }
+        } // End if (err.response)
 
         res.status(500).json({ error: 'Internal Server Error', details: err.message });
     }
