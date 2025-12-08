@@ -31,3 +31,6 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+Model/deeplabv3p_best.pth
+hf_space/deeplabv3p_best.pth
+

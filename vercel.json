@@ -1,37 +1,14 @@
 {
-    "version": 2,
-    "routes": [
+    "rewrites": [
         {
-            "src": "/api/(.*)",
-            "dest": "/final-version/server.js"
+            "source": "/api/(.*)",
+            "destination": "/api/index.js"
         },
         {
-            "src": "/assets/(.*)",
-            "dest": "/frontend/assets/$1"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/frontend/$1"
-        },
-        {
-            "handle": "filesystem"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/frontend/index.html"
+            "source": "/(.*)",
+            "destination": "/frontend/$1"
         }
     ],
-    "builds": [
-        {
-            "src": "final-version/server.js",
-            "use": "@vercel/node"
-        },
-        {
-            "src": "frontend/package.json",
-            "use": "@vercel/static-build",
-            "config": {
-                "distDir": "dist"
-            }
-        }
-    ]
+    "buildCommand": "cd frontend && npm install && npm run build",
+    "outputDirectory": "frontend/dist"
 }

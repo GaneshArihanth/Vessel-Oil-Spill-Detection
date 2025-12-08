@@ -1,16 +1,29 @@
 const mongoose = require('mongoose');
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-});
+// Connect to MongoDB with retry logic
+const connectDB = async () => {
+    try {
+        const uri = process.env.MONGO_URI;
+        if (!uri) {
+            console.error('❌ MONGO_URI is missing in environment variables.');
+            return;
+        }
+
+        await mongoose.connect(uri);
+        console.log('✅ Connected to MongoDB');
+    } catch (err) {
+        console.error('❌ MongoDB connection error:', err.message);
+        console.log('🔄 Retrying in 5 seconds...');
+        setTimeout(connectDB, 5000);
+    }
+};
+
+connectDB();
 
 const db = mongoose.connection;
-
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', () => {
-    console.log('Connected to MongoDB');
+db.on('error', (err) => {
+    console.error('❌ MongoDB runtime error:', err.message);
 });
 
 // Define the Vessel schema

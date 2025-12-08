@@ -173,6 +173,66 @@ function App() {
                   </div>
                 </div>
               )}
+
+              {/* Oil Spill Analysis Card */}
+              {vesselData.oilSpillData && !vesselData.oilSpillData.error && (
+                <div className="card oil-spill-card relative">
+                  <GlowingEffect
+                    spread={40}
+                    glow={true}
+                    disabled={false}
+                    proximity={64}
+                    inactiveZone={0.01}
+                  />
+                  <div className="relative z-10">
+                    <h2>🛢️ Oil Spill Analysis</h2>
+
+                    <div className={cn("status-badge", vesselData.oilSpillData.is_spill ? "status-danger" : "status-safe")}>
+                      {vesselData.oilSpillData.is_spill ? "⚠️ OIL SPILL DETECTED" : "✅ No Spill Detected"}
+                    </div>
+
+                    <div className="info-row">
+                      <span>Confidence</span>
+                      <span className="info-value">{(vesselData.oilSpillData.confidence * 100).toFixed(1)}%</span>
+                    </div>
+
+                    <div className="info-row">
+                      <span>Oil Coverage</span>
+                      <span className="info-value">{vesselData.oilSpillData.oil_percentage.toFixed(2)}%</span>
+                    </div>
+
+                    <div className="info-row">
+                      <span>Risk Level</span>
+                      <span className={cn("info-value", vesselData.oilSpillData.is_spill ? "text-red-400" : "text-green-400")}>
+                        {vesselData.oilSpillData.is_spill ? "HIGH RISK" : "Low Risk"}
+                      </span>
+                    </div>
+
+                    <div className="info-row">
+                      <span>Analysis Location</span>
+                      <span className="info-value">{vesselData.latitude.toFixed(4)}, {vesselData.longitude.toFixed(4)}</span>
+                    </div>
+
+                    <div className="info-row">
+                      <span>Action Required</span>
+                      <span className="info-value">
+                        {vesselData.oilSpillData.is_spill ? "⚠️ Monitor & Report" : "None"}
+                      </span>
+                    </div>
+
+                    {vesselData.oilSpillData.analysisImage && (
+                      <div className="analysis-image-container mt-4">
+                        <p className="text-sm text-slate-400 mb-2">Analysis Overlay:</p>
+                        <img
+                          src={`data:image/png;base64,${vesselData.oilSpillData.analysisImage}`}
+                          alt="Oil Spill Analysis"
+                          className="satellite-img border border-slate-700 rounded-md"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

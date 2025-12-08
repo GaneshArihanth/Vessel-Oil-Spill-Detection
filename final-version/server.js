@@ -9,9 +9,13 @@ const app = express();
 app.use(cors()); // Enable CORS for all routes
 const PORT = process.env.PORT || 3000;
 
+console.log("DEBUG: MONGO_URI starts with:", process.env.MONGO_URI ? process.env.MONGO_URI.substring(0, 20) : "UNDEFINED");
+
 // API Keys
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 const MAPBOX_ACCESS_TOKEN = process.env.MAPBOX_ACCESS_TOKEN;
+// ML Service URL (Hugging Face or Local)
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001/predict';
 
 // Helper function to fetch weather
 async function fetchWeather(lat, lon) {
@@ -108,7 +112,29 @@ const handleVesselPosition = async (req, res) => {
             // The schema stores weather.
 
             // Re-construct response from DB
-            const satelliteImage = await fetchSatelliteImage(cachedVessel.latitude, cachedVessel.longitude); // Still fetch image or cache it? Image API might not be rate limited same way.
+            const satelliteImage = await fetchSatelliteImage(cachedVessel.latitude, cachedVessel.longitude);
+
+            // --- OIL SPILL DETECTION (Moved to shared logic in future refactor) ---
+            let oilSpillData = null;
+            try {
+                // console.log("Creating oil spill detection request (Cache Hit)...");
+                const imageBase64 = Buffer.from(satelliteImage).toString('base64');
+                const mlResponse = await axios.post(ML_SERVICE_URL, {
+                    image: imageBase64
+                });
+
+                if (mlResponse.data) {
+                    oilSpillData = mlResponse.data;
+                    if (oilSpillData.annotated_image) {
+                        oilSpillData.analysisImage = oilSpillData.annotated_image;
+                        delete oilSpillData.annotated_image;
+                    }
+                }
+            } catch (mlError) {
+                console.error("Oil Spill Detection Service Failed (Cache Hit):", mlError.message);
+                oilSpillData = { error: "Service Unavailable" };
+            }
+            // ---------------------------------------------------------------------
 
             if (req.headers.accept && req.headers.accept.includes('application/json')) {
                 return res.json({
@@ -129,7 +155,8 @@ const handleVesselPosition = async (req, res) => {
                     rain: cachedVessel.rain,
                     clouds: cachedVessel.clouds,
                     temperatureMessage: 'Cached Data',
-                    satelliteImage: Buffer.from(satelliteImage).toString('base64')
+                    satelliteImage: Buffer.from(satelliteImage).toString('base64'),
+                    oilSpillData: oilSpillData
                 });
             }
 
@@ -244,7 +271,40 @@ const handleVesselPosition = async (req, res) => {
         const temperatureMessage = 'Temperature comparison unavailable';
 
         // 6. Fetch Satellite Image
-        const satelliteImage = await fetchSatelliteImage(latitude, longitude);
+        let satelliteImage = await fetchSatelliteImage(latitude, longitude);
+        let oilSpillData = null;
+
+        // --- OIL SPILL DETECTION INTEGRATION ---
+        try {
+            console.log("Creating oil spill detection request...");
+            // Convert buffer to base64 for transport to Python API
+            const imageBase64 = Buffer.from(satelliteImage).toString('base64');
+
+            // Call Python Flask API
+            const mlResponse = await axios.post(ML_SERVICE_URL, {
+                image: imageBase64
+            });
+
+            if (mlResponse.data) {
+                console.log("Oil spill detection successful:", mlResponse.data.is_spill ? "SPILL DETECTED" : "Safe");
+                oilSpillData = mlResponse.data;
+
+                // If the ML model returns an annotated image, use it!
+                if (oilSpillData.annotated_image) {
+                    // Optionally replace the original satellite image with the annotated one in the main response
+                    // Or send it as a separate field. Let's send it as a separate field 'oilSpillImage'
+                    // or override 'satelliteImage' if we want the user to see the analysis by default.
+                    // Making a design choice: Let's keep original 'satelliteImage' clean, and send 'oilAnalysisImage' separately.
+                    oilSpillData.analysisImage = oilSpillData.annotated_image;
+                    delete oilSpillData.annotated_image; // Clean up payload
+                }
+            }
+        } catch (mlError) {
+            console.error("Oil Spill Detection Service Failed:", mlError.message);
+            // Don't fail the whole request, just return null for oil spill data
+            oilSpillData = { error: "Service Unavailable" };
+        }
+        // ---------------------------------------
 
         // 7. Send Response
         if (req.headers.accept && req.headers.accept.includes('application/json')) {
@@ -266,7 +326,8 @@ const handleVesselPosition = async (req, res) => {
                 rain: weatherData.rain ? weatherData.rain['1h'] : 'No rain data',
                 clouds: weatherData.clouds.all,
                 temperatureMessage: temperatureMessage,
-                satelliteImage: Buffer.from(satelliteImage).toString('base64')
+                satelliteImage: Buffer.from(satelliteImage).toString('base64'),
+                oilSpillData: oilSpillData
             });
         }
 
