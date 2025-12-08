@@ -369,11 +369,15 @@ def index():
 
 @app.route('/<path:path>')
 def serve_static(path):
+    # Failsafe: Do not handle /predict here
+    if path.startswith('predict'):
+        return jsonify({'error': 'Route mismatch in static handler'}), 500
+
     # Serve assets from 'static/assets'
     if os.path.exists(os.path.join('static/assets', path)):
          return send_from_directory('static/assets', path)
     return send_from_directory('templates', path) # Fallback
 
 if __name__ == '__main__':
-    print("Starting Flask ML Service on port 7860...")
+    print("Starting Flask ML Service (Routes Fixed V3)...")
     app.run(host='0.0.0.0', port=7860, debug=False)
