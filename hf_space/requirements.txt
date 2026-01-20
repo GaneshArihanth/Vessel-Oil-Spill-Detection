@@ -1,0 +1,12 @@
+flask
+flask-cors
+torch
+torchvision
+segmentation-models-pytorch
+albumentations
+opencv-python-headless
+pillow
+numpy
+pymongo
+requests
+python-dotenv
